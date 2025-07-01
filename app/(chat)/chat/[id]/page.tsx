@@ -17,7 +17,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
   try {
     chat = await getChatById({ id });
   } catch (error) {
-    console.error('Error fetching chat:', error); // Handle the error appropriately, e.g., log it or show a user-friendly message
+    console.error('Error fetching chat:', error); 
     notFound();
   }
 
