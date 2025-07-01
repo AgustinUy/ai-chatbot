@@ -12,7 +12,14 @@ import type { Attachment, UIMessage } from 'ai';
 export default async function Page(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const { id } = params;
-  const chat = await getChatById({ id });
+  
+  let chat;
+  try {
+    chat = await getChatById({ id });
+  } catch (error) {
+    console.error('Error fetching chat:', error); // Handle the error appropriately, e.g., log it or show a user-friendly message
+    notFound();
+  }
 
   if (!chat) {
     notFound();

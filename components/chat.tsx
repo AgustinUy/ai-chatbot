@@ -39,6 +39,20 @@ export function Chat({
   autoResume: boolean;
 }) {
   const { mutate } = useSWRConfig();
+  const [selectedAssistant, setSelectedAssistant] = useState<any>(null);
+
+  // Load selected assistant from localStorage
+  useEffect(() => {
+    const storedAssistant = localStorage.getItem('selectedAssistant');
+    if (storedAssistant) {
+      try {
+        const assistant = JSON.parse(storedAssistant);
+        setSelectedAssistant(assistant);
+      } catch (error) {
+        console.error('Error parsing stored assistant:', error);
+      }
+    }
+  }, []);
 
   const { visibilityType } = useChatVisibility({
     chatId: id,
@@ -69,6 +83,12 @@ export function Chat({
       message: body.messages.at(-1),
       selectedChatModel: initialChatModel,
       selectedVisibilityType: visibilityType,
+      selectedAssistant: selectedAssistant ? {
+        id: selectedAssistant.id,
+        name: selectedAssistant.name,
+        instructions: selectedAssistant.instructions,
+        persona: selectedAssistant.persona,
+      } : undefined,
     }),
     onFinish: () => {
       mutate(unstable_serialize(getChatHistoryPaginationKey));

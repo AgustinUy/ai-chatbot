@@ -67,12 +67,12 @@ export async function POST(request: Request) {
   try {
     const json = await request.json();
     requestBody = postRequestBodySchema.parse(json);
-  } catch (_) {
+  } catch (error) {
     return new ChatSDKError('bad_request:api').toResponse();
   }
 
   try {
-    const { id, message, selectedChatModel, selectedVisibilityType } =
+    const { id, message, selectedChatModel, selectedVisibilityType, selectedAssistant } =
       requestBody;
 
     const session = await auth();
@@ -95,18 +95,30 @@ export async function POST(request: Request) {
     const chat = await getChatById({ id });
 
     if (!chat) {
-      const title = await generateTitleFromUserMessage({
-        message,
-      });
+      console.log('Chat not found, creating new chat...');
+      try {
+        const title = await generateTitleFromUserMessage({
+          message,
+        });
 
-      await saveChat({
-        id,
-        userId: session.user.id,
-        title,
-        visibility: selectedVisibilityType,
-      });
+        await saveChat({
+          id,
+          userId: session.user.id,
+          title,
+          visibility: selectedVisibilityType,
+        });
+        console.log('New chat created');
+      } catch (titleError) {
+        // Only log the specific AI_RetryError
+        if (titleError instanceof Error && titleError.name === 'AI_RetryError') {
+          console.error('Unexpected error in POST /api/chat:', titleError);
+        }
+        return new ChatSDKError('bad_request:chat').toResponse();
+      }
     } else {
+      console.log('Existing chat found, checking permissions...');
       if (chat.userId !== session.user.id) {
+        console.error('User does not own this chat');
         return new ChatSDKError('forbidden:chat').toResponse();
       }
     }
@@ -142,13 +154,16 @@ export async function POST(request: Request) {
     });
 
     const streamId = generateUUID();
-    await createStreamId({ streamId, chatId: id });
-
-    const stream = createDataStream({
+    await createStreamId({ streamId, chatId: id });    const stream = createDataStream({
       execute: (dataStream) => {
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
-          system: systemPrompt({ selectedChatModel, requestHints }),
+          system: systemPrompt({
+            selectedChatModel,
+            requestHints,
+            assistantInstructions: selectedAssistant?.instructions,
+            assistantPersona: selectedAssistant?.persona,
+          }),
           messages,
           maxSteps: 5,
           experimental_activeTools:
@@ -237,6 +252,8 @@ export async function POST(request: Request) {
     if (error instanceof ChatSDKError) {
       return error.toResponse();
     }
+    // Handle any other errors
+    return new ChatSDKError('bad_request:chat', 'An unexpected error occurred').toResponse();
   }
 }
 

@@ -27,6 +27,8 @@ import {
   type DBMessage,
   type Chat,
   stream,
+  assistant,
+  type Assistant,
 } from './schema';
 import type { ArtifactKind } from '@/components/artifact';
 import { generateUUID } from '../utils';
@@ -533,6 +535,168 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get stream ids by chat id',
+    );
+  }
+}
+
+// Assistant functions
+export async function getAssistantsByUserId(userId: string): Promise<Array<Assistant>> {
+  try {
+    return await db
+      .select()
+      .from(assistant)
+      .where(
+        and(
+          eq(assistant.userId, userId),
+          eq(assistant.isActive, true)
+        )
+      )
+      .orderBy(desc(assistant.createdAt))
+      .execute();
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get assistants by user id',
+    );
+  }
+}
+
+export async function createAssistant({
+  name,
+  instructions,
+  persona,
+  userId,
+}: {
+  name: string;
+  instructions: string;
+  persona?: string;
+  userId: string;
+}): Promise<Assistant> {
+  try {
+    const [newAssistant] = await db
+      .insert(assistant)
+      .values({
+        name,
+        instructions,
+        persona,
+        userId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning()
+      .execute();
+
+    return newAssistant;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create assistant',
+    );
+  }
+}
+
+export async function updateAssistant({
+  id,
+  userId,
+  name,
+  instructions,
+  persona,
+}: {
+  id: string;
+  userId: string;
+  name: string;
+  instructions: string;
+  persona?: string;
+}): Promise<Assistant> {
+  try {
+    const [updatedAssistant] = await db
+      .update(assistant)
+      .set({
+        name,
+        instructions,
+        persona,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(assistant.id, id),
+          eq(assistant.userId, userId)
+        )
+      )
+      .returning()
+      .execute();
+
+    if (!updatedAssistant) {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'Assistant not found or you do not have permission to update it',
+      );
+    }
+
+    return updatedAssistant;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update assistant',
+    );
+  }
+}
+
+export async function deleteAssistant({
+  id,
+  userId,
+}: {
+  id: string;
+  userId: string;
+}): Promise<Assistant> {
+  try {
+    const [deletedAssistant] = await db
+      .update(assistant)
+      .set({ isActive: false })
+      .where(
+        and(
+          eq(assistant.id, id),
+          eq(assistant.userId, userId)
+        )
+      )
+      .returning()
+      .execute();
+
+    if (!deletedAssistant) {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'Assistant not found or you do not have permission to delete it',
+      );
+    }
+
+    return deletedAssistant;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete assistant',
+    );
+  }
+}
+
+export async function getAssistantById(id: string, userId: string): Promise<Assistant | null> {
+  try {
+    const assistantData = await db
+      .select()
+      .from(assistant)
+      .where(
+        and(
+          eq(assistant.id, id),
+          eq(assistant.userId, userId),
+          eq(assistant.isActive, true)
+        )
+      )
+      .execute();
+
+    return assistantData[0] || null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get assistant by id',
     );
   }
 }

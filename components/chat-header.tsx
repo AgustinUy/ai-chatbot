@@ -9,7 +9,7 @@ import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Button } from '@/components/ui/button';
 import { PlusIcon, VercelIcon } from './icons';
 import { useSidebar } from './ui/sidebar';
-import { memo } from 'react';
+import { memo, useState, useEffect } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { type VisibilityType, VisibilitySelector } from './visibility-selector';
 import type { Session } from 'next-auth';
@@ -28,6 +28,20 @@ function PureChatHeader({
   session: Session;
 }) {
   const router = useRouter();
+  const [selectedAssistant, setSelectedAssistant] = useState<any>(null);
+
+  // Load selected assistant from localStorage
+  useEffect(() => {
+    const storedAssistant = localStorage.getItem('selectedAssistant');
+    if (storedAssistant) {
+      try {
+        const assistant = JSON.parse(storedAssistant);
+        setSelectedAssistant(assistant);
+      } catch (error) {
+        console.error('Error parsing stored assistant:', error);
+      }
+    }
+  }, []);
   const { open } = useSidebar();
 
   const { width: windowWidth } = useWindowSize();
@@ -69,6 +83,30 @@ function PureChatHeader({
           selectedVisibilityType={selectedVisibilityType}
           className="order-1 md:order-3"
         />
+      )}
+
+      {/* Assistant indicator */}
+      {selectedAssistant && (
+        <div className="order-1 md:order-3 flex items-center gap-2 px-2 py-1 bg-blue-50 border border-blue-200 rounded-md text-xs text-blue-700">
+          <span className="font-medium">🤖 {selectedAssistant.name}</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              localStorage.removeItem('selectedAssistant');
+              localStorage.removeItem('selectedAssistantId');
+              setSelectedAssistant(null);
+              
+              // Dispatch custom event to notify other components
+              window.dispatchEvent(new CustomEvent('assistantSelectionChanged'));
+              
+              router.refresh();
+            }}
+            className="p-0 h-4 w-4 text-blue-600 hover:text-blue-800"
+          >
+            ×
+          </Button>
+        </div>
       )}
 
       <Button

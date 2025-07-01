@@ -53,16 +53,33 @@ About the origin of user's request:
 export const systemPrompt = ({
   selectedChatModel,
   requestHints,
+  assistantInstructions,
+  assistantPersona,
 }: {
   selectedChatModel: string;
   requestHints: RequestHints;
+  assistantInstructions?: string;
+  assistantPersona?: string;
 }) => {
   const requestPrompt = getRequestPromptFromHints(requestHints);
+  
+  // Build the base prompt
+  let basePrompt = regularPrompt;
+  
+  // Add assistant instructions if provided
+  if (assistantInstructions) {
+    basePrompt = assistantInstructions;
+    
+    // Add persona if provided
+    if (assistantPersona) {
+      basePrompt += `\n\nPersonality and Tone: ${assistantPersona} \n do not mention it explicitly. \n do not loose the persiona in your responses.`;
+    }
+  }
 
   if (selectedChatModel === 'chat-model-reasoning') {
-    return `${regularPrompt}\n\n${requestPrompt}`;
+    return `${basePrompt}\n\n${requestPrompt}`;
   } else {
-    return `${regularPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}`;
+    return `${basePrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}`;
   }
 };
 
